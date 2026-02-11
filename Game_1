@@ -352,7 +352,6 @@ Roll d20 + (Strength + Dexterity)/2 vs DC 17. Use EMP/ knowledge for edge!`,
         }
 
         // // Comment out auto-start
-// window.onload = initGame;
 
 // Add a start button instead
 function addStartButton() {
