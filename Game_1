@@ -351,9 +351,18 @@ Roll d20 + (Strength + Dexterity)/2 vs DC 17. Use EMP/ knowledge for edge!`,
             displayNode();
         }
 
-        // Auto-init on load
-        window.onload = initGame;
+        // // Comment out auto-start
+// window.onload = initGame;
 
+// Add a start button instead
+function addStartButton() {
+    const container = document.getElementById('game-container');
+    container.innerHTML = '<button style="font-size:1.5em; padding:20px 40px; background:#ff6600; color:black; border:none; border-radius:10px;" onclick="initGame()">Start Adventure – Enter Your Chad Stats</button>';
+}
+
+window.onload = function() {
+    addStartButton();
+};
         // For real NFT integration example (uncomment and setup web3):
         /*
         async function loadNFTStats(contractAddress, tokenId) {
