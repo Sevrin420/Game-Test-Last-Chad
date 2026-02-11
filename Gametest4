@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Chad Adventure - Survive the Robot Invasion</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #0a0a0a;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+            line-height: 1.6;
+            font-size: 1.15em;
+        }
+        h1, h2 {
+            color: #ff6600;
+            text-align: center;
+        }
+        #stats {
+            background: #111;
+            padding: 18px;
+            border: 2px solid #00ff00;
+            margin-bottom: 25px;
+            border-radius: 10px;
+        }
+        button {
+            background: #ff6600;
+            color: #000;
+            border: none;
+            padding: 16px 32px;
+            margin: 12px 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1.2em;
+            border-radius: 8px;
+            min-width: 240px;
+            touch-action: manipulation;
+        }
+        button:hover {
+            background: #ff8800;
+        }
+        button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+        .outcome {
+            margin: 25px 0;
+            padding: 18px;
+            border-left: 5px solid #ff6600;
+            background: #111;
+            border-radius: 8px;
+        }
+        .success { border-left-color: #00ff00; }
+        .failure { border-left-color: #ff0000; }
+        .roll-result {
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        #game-over, #victory {
+            text-align: center;
+            font-size: 2em;
+            padding: 40px 20px;
+        }
+        #start-screen {
+            text-align: center;
+            margin: 80px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 LAST CHAD ADVENTURE 🔥</h1>
+    <p style="text-align: center;">Blue robot women with red glowing eyes are wiping out the island. You are the Last Chad. Survive. Gather. Fight back.</p>
+    
+    <div id="stats">
+        <h2>Your Chad Stats</h2>
+        <div id="stat-display">Waiting to start...</div>
+    </div>
+    
+    <div id="game-container">
+        <div id="start-screen">
+            <button onclick="startGame()" style="font-size:1.8em; padding:35px 70px;">
+                START ADVENTURE<br>Enter Your Stats
+            </button>
+            <p style="margin-top:25px; color:#aaa; font-size:1em;">
+                Tap the button to begin (important on mobile)
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ────────────────────────────────────────────────
+        // Game state
+        // ────────────────────────────────────────────────
+        let gameState = {
+            stats: null,
+            currentNode: 'start',
+            rolls: [],
+            resources: 0,
+            robotsDefeated: 0
+        };
+
+        // ────────────────────────────────────────────────
+        // Adventure structure
+        // ────────────────────────────────────────────────
+        const adventureNodes = {
+            start: {
+                text: `You awaken in the rubble of Hawaiian Paradise Park. Smoke rises from the small city nearby. Laser fire and screams echo. Your home is gone, but you're alive.
+
+You find 3 rations in your backpack (resources +3).
+
+What do you do?`,
+                choices: [
+                    { text: "Head to the city to fight robots", next: "city_fight" },
+                    { text: "Search the jungle for survivors", next: "jungle_search" }
+                ]
+            },
+            city_fight: {
+                text: `Outskirts of the city. A blue robot woman patrols — red eyes lock onto you!
+
+<strong>Encounter 1: Combat Roll (Strength)</strong><br>
+Roll d20 + Strength vs DC 15 to smash her.`,
+                choices: [
+                    { text: "Charge in!", action: "roll_strength", nextSuccess: "city_win", nextFail: "city_fail" }
+                ],
+                rollType: "strength",
+                dc: 15
+            },
+            city_win: {
+                text: `<div class="outcome success">💥 Pipe to the skull — robot down! Loot 2 tech scraps (resources +2).</div>
+
+A dying Chad whispers: "They fear the volcano..."`,
+                choices: [
+                    { text: "Head toward the volcano?", next: "volcano_path" },
+                    { text: "Search city ruins instead", next: "city_ruins" }
+                ]
+            },
+            city_fail: {
+                text: `<div class="outcome failure">😵 Punch bounces off. Laser hits — you escape, but lose 1 ration.</div>
+
+You spot a hidden bunker nearby.`,
+                choices: [
+                    { text: "Enter the bunker?", next: "bunker" },
+                    { text: "Flee to the jungle", next: "jungle_search" }
+                ]
+            },
+            jungle_search: {
+                text: `Dense jungle. You find 2 survivor Chads hiding.
+
+<strong>Encounter 2: Stealth Roll (Dexterity)</strong><br>
+Roll d20 + Dexterity vs DC 14 to sneak past a robot scout.`,
+                choices: [
+                    { text: "Attempt stealth", action: "roll_dexterity", nextSuccess: "jungle_win", nextFail: "jungle_fail" }
+                ],
+                rollType: "dexterity",
+                dc: 14
+            },
+            jungle_win: {
+                text: `<div class="outcome success">🕵️ Silent approach. Survivors share robot weak points — EMP from old generators helps later.</div>`,
+                choices: [
+                    { text: "Ask about a safe spot in the city?", next: "safe_spot" },
+                    { text: "Head to city ruins", next: "city_ruins" }
+                ]
+            },
+            jungle_fail: {
+                text: `<div class="outcome failure">🤦 Twig snap — alarm! You fight off the scout but survivors scatter.</div>`,
+                choices: [
+                    { text: "Continue to city ruins", next: "city_ruins" }
+                ]
+            },
+            city_ruins: {
+                text: `Ruined city streets. A guarded generator — potential EMP source.
+
+<strong>Encounter 3: Hack Roll (Intelligence)</strong><br>
+Roll d20 + Intelligence vs DC 16 to trigger EMP.`,
+                choices: [
+                    { text: "Try to hack it", action: "roll_intelligence", nextSuccess: "ruins_win", nextFail: "ruins_fail" }
+                ],
+                rollType: "intelligence",
+                dc: 16
+            },
+            ruins_win: {
+                text: `<div class="outcome success">🧠 EMP pulse! Two robots fry. Gain 5 scraps (resources +5).</div>`,
+                choices: [
+                    { text: "Head to the docks (Queen's location)", next: "docks" }
+                ]
+            },
+            ruins_fail: {
+                text: `<div class="outcome failure">💻 Hack fails — robots attack. You flee, losing 1 ration.</div>`,
+                choices: [
+                    { text: "Escape to the docks", next: "docks" }
+                ]
+            },
+            safe_spot: {
+                text: `Hidden bar revealed. Shady Chads confirm: Queen robot is at the docks controlling everything.`,
+                choices: [
+                    { text: "Rally for the final push?", next: "final_prep" }
+                ]
+            },
+            bunker: {
+                text: `Old bunker. A trader Chad inside.
+
+<strong>Encounter 4: Persuasion Roll (Charisma)</strong><br>
+Roll d20 + Charisma vs DC 13 to get valuable info.`,
+                choices: [
+                    { text: "Talk him into helping", action: "roll_charisma", nextSuccess: "bunker_win", nextFail: "bunker_fail" }
+                ],
+                rollType: "charisma",
+                dc: 13
+            },
+            bunker_win: {
+                text: `<div class="outcome success">😎 "Here’s the map, brother — Queen is at the docks." You know where to strike.</div>`,
+                choices: [
+                    { text: "Head to the docks", next: "docks" }
+                ]
+            },
+            bunker_fail: {
+                text: `<div class="outcome failure">🤨 He refuses. No info gained.</div>`,
+                choices: [
+                    { text: "Leave for the docks", next: "docks" }
+                ]
+            },
+            final_prep: {
+                text: `You rally a few Chads. They join the final assault — +2 bonus to your last roll!`,
+                choices: [
+                    { text: "Charge the docks!", next: "docks", bonus: 2 }
+                ]
+            },
+            docks: {
+                text: `Burning docks. The Queen Robot towers over the swarm — massive, red eyes blazing.
+
+<strong>Final Encounter: Epic Battle</strong><br>
+Roll d20 + (Strength + Dexterity)/2 vs DC 17.`,
+                choices: [
+                    { text: "Engage the Queen!", action: "roll_final", nextSuccess: "victory", nextFail: "game_over" }
+                ],
+                rollType: "final",
+                dc: 17
+            },
+            victory: {
+                text: `<div id="victory" style="color:#00ff00;">
+🏆 VICTORY! 🏆<br>
+Queen destroyed — robots power down. Island saved.<br><br>
+Resources: <span id="final-resources"></span><br>
+Robots Defeated: <span id="final-defeated"></span><br>
+Rolls Won: <span id="rolls-won"></span>/5
+</div>`,
+                choices: []
+            },
+            game_over: {
+                text: `<div id="game-over" style="color:#ff0000;">
+💀 GAME OVER 💀<br>
+Vaporized by the Queen.<br><br>
+Resources: <span id="final-resources"></span><br>
+Robots Defeated: <span id="final-defeated"></span><br>
+Rolls Won: <span id="rolls-won"></span>/5<br>
+<strong>Mint another Chad — try again!</strong>
+</div>`,
+                choices: []
+            }
+        };
+
+        function rollD20() {
+            return Math.floor(Math.random() * 20) + 1;
+        }
+
+        function displayNode() {
+            const node = adventureNodes[gameState.currentNode];
+            const container = document.getElementById('game-container');
+
+            let html = `<div style="background:#111; padding:25px; border:2px solid #ff6600; border-radius:10px; margin-bottom:25px;">
+                <p>${node.text}</p>`;
+
+            if (node.choices.length === 0) {
+                // End screen
+                setTimeout(() => {
+                    const res = document.getElementById('final-resources');
+                    const def = document.getElementById('final-defeated');
+                    const won = document.getElementById('rolls-won');
+                    if (res) res.textContent = gameState.resources;
+                    if (def) def.textContent = gameState.robotsDefeated;
+                    if (won) won.textContent = gameState.rolls.filter(r => r.success).length;
+                }, 100);
+                container.innerHTML = html + '</div>';
+                return;
+            }
+
+            html += '<div style="text-align:center;">';
+            node.choices.forEach(choice => {
+                // FIXED: using backticks (template literal) so ${choice.text} works correctly
+                html += `<button onclick="makeChoice('\( {choice.next || ''}', ' \){choice.action || ''}', '${choice.rollType || ''}', \( {choice.bonus || 0})"> \){choice.text}</button><br>`;
+            });
+            html += '</div></div>';
+
+            container.innerHTML = html;
+        }
+
+        function makeChoice(next, action, rollType, bonus = 0) {
+            if (action && action.startsWith('roll_')) {
+                const isFinal = rollType === 'final';
+                const mod = isFinal
+                    ? Math.floor((gameState.stats.strength + gameState.stats.dexterity) / 2)
+                    : gameState.stats[rollType];
+
+                const totalBonus = mod + (bonus || 0);
+                const roll = rollD20();
+                const total = roll + totalBonus;
+                const dc = adventureNodes[gameState.currentNode].dc;
+                const success = total >= dc;
+
+                gameState.rolls.push({ roll, mod, total, success, dc });
+
+                const outcomeClass = success ? 'success' : 'failure';
+                const outcomeText = success ? 'SUCCESS!' : 'FAILURE!';
+                if (success) {
+                    gameState.resources += 2;
+                    gameState.robotsDefeated += 1;
+                } else {
+                    gameState.resources = Math.max(0, gameState.resources - 1);
+                }
+
+                // FIXED: using template literal here too
+                const rollHtml = `<div class="outcome ${outcomeClass}">
+                    <span class="roll-result">🎲 Roll: ${roll} + ${totalBonus} = ${total} vs DC ${dc} → ${outcomeText}</span><br>
+                    <strong>\( {rollType.toUpperCase()} used ( \){mod})</strong>
+                </div>`;
+
+                document.getElementById('game-container').innerHTML += rollHtml;
+
+                setTimeout(() => {
+                    gameState.currentNode = success
+                        ? (adventureNodes[gameState.currentNode].nextSuccess || next)
+                        : (adventureNodes[gameState.currentNode].nextFail || next);
+                    displayNode();
+                    updateStats();
+                }, 1800);
+            } else {
+                if (next) gameState.currentNode = next;
+                displayNode();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            const display = document.getElementById('stat-display');
+            if (!gameState.stats) return;
+
+            // Using template literal for clarity & safety
+            display.innerHTML = `
+                Strength: ${gameState.stats.strength} | Intelligence: ${gameState.stats.intelligence}<br>
+                Dexterity: ${gameState.stats.dexterity} | Charisma: ${gameState.stats.charisma}<br>
+                <strong>Resources: ${gameState.resources} | Robots Defeated: ${gameState.robotsDefeated}</strong>
+            `;
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            initGame();
+        }
+
+        function initGame() {
+            let s = prompt("Enter Strength (0-10):") || "3";
+            let i = prompt("Enter Intelligence (0-10):") || "2";
+            let d = prompt("Enter Dexterity (0-10):") || "3";
+            let c = prompt("Enter Charisma (0-10):") || "2";
+
+            gameState.stats = {
+                strength: parseInt(s) || 3,
+                intelligence: parseInt(i) || 2,
+                dexterity: parseInt(d) || 3,
+                charisma: parseInt(c) || 2
+            };
+            gameState.resources = 3;
+
+            updateStats();
+            displayNode();
+        }
+
+        // Fallback in case mobile blocks prompts
+        setTimeout(() => {
+            if (!gameState.stats) {
+                gameState.stats = { strength:5, intelligence:4, dexterity:5, charisma:4 };
+                gameState.resources = 3;
+                updateStats();
+                displayNode();
+                alert("Prompts were blocked by the browser.\nUsing default balanced stats (5/4/5/4).");
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
